@@ -1,7 +1,7 @@
 /*************************************************************************
  *
- * GAMEBOY PRINTER EMULATION PROJECT V3 (Arduino)
- * Copyright (C) 2020 Brian Khuu
+ * GAMEBOY PRINTER EMULATION PROJECT V3.2.1 (Arduino)
+ * Copyright (C) 2022 Brian Khuu
  *
  * PURPOSE: To capture gameboy printer images without a gameboy printer
  *          via the arduino platform. (Tested on the arduino nano)
@@ -24,6 +24,13 @@
  *   along with Arduino Gameboy Printer Emulator.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+
+// See /WEBUSB.md for details
+#if USB_VERSION == 0x210
+#include <WebUSB.h>
+WebUSB WebUSBSerial(1, "herrzatacke.github.io/gb-printer-web/#/webusb");
+#define Serial WebUSBSerial
+#endif
 
 #define GBP_OUTPUT_RAW_PACKETS true // by default, packets are parsed. if enabled, output will change to raw data packets for parsing and decompressing later
 #define GBP_USE_PARSE_DECOMPRESSOR false // embedded decompressor can be enabled for use with parse mode but it requires fast hardware (SAMD21, SAMD51, ESP8266, ESP32)
@@ -158,6 +165,9 @@ void setup(void)
   // Has to be fast or it will not transfer the image fast enough to the computer
   Serial.begin(115200);
 
+  // Wait for Serial to be ready
+  while (!Serial) {;}
+
   /* Pins from gameboy link cable */
   pinMode(GBP_SC_PIN, INPUT);
   pinMode(GBP_SO_PIN, INPUT);
@@ -185,16 +195,17 @@ void setup(void)
   gbp_pkt_init(&gbp_pktState);
 #endif
 
+#define VERSION_STRING "V3.2.1 (Copyright (C) 2022 Brian Khuu)"
 
   /* Welcome Message */
 #ifdef GBP_FEATURE_PACKET_CAPTURE_MODE
-  Serial.println("// GAMEBOY PRINTER Packet Capture V3 (Brian Khuu 2020)");
+  Serial.println("// GAMEBOY PRINTER Packet Capture " VERSION_STRING);
   Serial.println("// Note: Each byte is from each GBP packet is from the gameboy");
   Serial.println("//       except for the last two bytes which is from the printer");
   Serial.println("// JS Raw Packet Decoder: https://mofosyne.github.io/arduino-gameboy-printer-emulator/GameBoyPrinterDecoderJS/gameboy_printer_js_raw_decoder.html");
 #endif
 #ifdef GBP_FEATURE_PARSE_PACKET_MODE
-  Serial.println("// GAMEBOY PRINTER Emulator V3 : Copyright (C) 2020 Brian Khuu");
+  Serial.println("// GAMEBOY PRINTER Emulator " VERSION_STRING);
   Serial.println("// Note: Each hex encoded line is a gameboy tile");
   Serial.println("// JS Decoder: https://mofosyne.github.io/arduino-gameboy-printer-emulator/GameBoyPrinterDecoderJS/gameboy_printer_js_decoder.html");
 #endif
@@ -203,6 +214,8 @@ void setup(void)
   Serial.println("// This is free software, and you are welcome to redistribute it");
   Serial.println("// under certain conditions. Refer to LICENSE file for detail.");
   Serial.println("// ---");
+
+  Serial.flush();
 } // setup()
 
 void loop()
@@ -225,12 +238,13 @@ void loop()
     if (gbp_serial_io_timeout_handler(elapsed_ms))
     {
       Serial.println("");
-      Serial.print("// Timed Out ");
+      Serial.print("// Completed ");
       Serial.print("(Memory Waterline: ");
       Serial.print(gbp_serial_io_dataBuff_waterline(false));
       Serial.print("B out of ");
       Serial.print(gbp_serial_io_dataBuff_max());
       Serial.println("B)");
+      Serial.flush();
       digitalWrite(LED_STATUS_PIN, LOW);
 
 #ifdef GBP_FEATURE_PARSE_PACKET_MODE
@@ -329,6 +343,7 @@ inline void gbp_parse_packet_loop(void)
             Serial.print((gbp_pktState.dataLength != 0)?'1':'0');
           }
           Serial.println((char)'}');
+          Serial.flush();
       }
       else
       {
@@ -351,6 +366,7 @@ inline void gbp_parse_packet_loop(void)
                 Serial.print((char)' ');
               }
             }
+            Serial.flush();
           }
         }
 #else
@@ -371,6 +387,7 @@ inline void gbp_parse_packet_loop(void)
                 Serial.print((char)' ');
               }
           }
+          Serial.flush();
         }
 #endif
       }
@@ -429,6 +446,7 @@ inline void gbp_packet_capture_loop()
         byteTotal++; // Byte total counter
       }
     }
+    Serial.flush();
   }
 }
 #endif
